@@ -1,7 +1,8 @@
-use std::{error::Error, thread::JoinHandle};
-
+// use std::{error::Error, io::Result, thread::JoinHandle};
 use clap::Clap;
+use log::info;
 use simple_logger::SimpleLogger;
+use uuid::Uuid;
 
 #[derive(Clap, Debug)]
 #[clap(
@@ -25,29 +26,72 @@ fn main() {
     SimpleLogger::new().init().unwrap();
     let opts = Opts::parse();
 
-    log::info!("{:#?}", opts);
+    info!("{:#?}", opts);
 
-    let mut threads = Vec::new();
-    for (i, _) in (0..opts.num_workers).enumerate() {
-        threads.push(std::thread::spawn(move || log::info!("hello from {}", i)));
+    let mut d = Death::new();
+
+    for _ in 0..20 {
+        let worker = Worker::new();
+        worker.run();
+        d.new_life(worker);
     }
 
-    for t in threads {
-        t.join().expect("thread failed")
-    }
+    info!("DEATH: {:?}", d);
+    // let mut threads = Vec::new();
+    // for (i, _) in (0..opts.num_workers).enumerate() {
+    //     threads.push(std::thread::spawn(move || log::info!("hello from {}", i)));
+    // }
+
+    // for t in threads {
+    //     t.join().expect("thread failed")
+    // }
 }
 
-trait Runner<T> {
-    fn run(&mut self) -> std::io::Result<T>;
-    fn close(&mut self) -> std::io::Result<T>;
+trait Runner: std::fmt::Debug {
+    fn run(&self) -> ();
+    fn close(&self) -> std::io::Error;
 }
 
-struct Worker {}
+#[derive(Debug)]
+struct Worker {
+    id: String,
+}
 
 impl Worker {
     fn new() -> Worker {
-        Worker {}
+        Worker {
+            id: Uuid::new_v4().to_string(),
+        }
     }
 }
 
-impl Worker for Runner {}
+impl Runner for Worker {
+    fn run(&self) {
+        info!("Running worker...");
+    }
+
+    fn close(&self) -> std::io::Error {
+        info!("Closing worker...");
+        std::io::Error::new(std::io::ErrorKind::Other, "an error. Oh noes!")
+    }
+}
+
+#[derive(Debug)]
+struct Death {
+    lives: Vec<Box<dyn Runner>>,
+}
+
+impl Death {
+    fn new() -> Death {
+        Death { lives: Vec::new() }
+    }
+
+    fn new_life<T: Runner + 'static>(&mut self, runner: T) -> &Death {
+        self.lives.push(Box::new(runner));
+        self
+    }
+}
+
+trait TNode {
+    fn blah(&self);
+}
