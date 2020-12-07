@@ -91,7 +91,3 @@ impl Death {
         self
     }
 }
-
-trait TNode {
-    fn blah(&self);
-}
